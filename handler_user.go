@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/intaek-h/rss/internal/auth"
 	"github.com/intaek-h/rss/internal/database"
 )
 
@@ -36,5 +37,21 @@ func (api *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	respondWithJSON(w, http.StatusOK, user)
+	respondWithJSON(w, http.StatusCreated, databaseUserToUser(user))
+}
+
+func (api *apiConfig) handlerGetUser(w http.ResponseWriter, r *http.Request) {
+	apiKey, err := auth.GrabAPIKey(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, fmt.Sprintf("Failed to authenticate: %v", err))
+		return
+	}
+
+	user, err := api.DB.GetUserByAPIKey(r.Context(), apiKey)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to get user: %v", err))
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, databaseUserToUser(user))
 }
