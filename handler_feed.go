@@ -10,9 +10,10 @@ import (
 	"github.com/intaek-h/rss/internal/database"
 )
 
-func (api *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) {
+func (api *apiConfig) handlerCreateFeed(w http.ResponseWriter, r *http.Request, user database.User) {
 	type parameters struct {
 		Name string `json:"name"`
+		URL  string `json:"url"`
 	}
 
 	params := parameters{}
@@ -25,20 +26,19 @@ func (api *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	user, err := api.DB.CreateUser(r.Context(), database.CreateUserParams{
+	feed, err := api.DB.CreateFeed(r.Context(), database.CreateFeedParams{
 		ID:        uuid.New(),
 		Name:      params.Name,
 		CreatedAt: time.Now().UTC(),
 		UpdatedAt: time.Now().UTC(),
+		Url:       params.URL,
+		UserID:    user.ID,
 	})
+
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to create user: %v", err))
+		respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to create feed: %v", err))
 		return
 	}
 
-	respondWithJSON(w, http.StatusCreated, databaseUserToUser(user))
-}
-
-func (api *apiConfig) handlerGetUser(w http.ResponseWriter, r *http.Request, user database.User) {
-	respondWithJSON(w, http.StatusOK, databaseUserToUser(user))
+	respondWithJSON(w, http.StatusCreated, databaseFeedToFeed(feed))
 }
