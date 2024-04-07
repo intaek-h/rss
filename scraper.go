@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/intaek-h/rss/internal/database"
 )
 
@@ -58,6 +61,35 @@ func scrape(db *database.Queries, wg *sync.WaitGroup, feed database.Feed) {
 
 	for _, item := range rssFeed.Channel.Item {
 		fmt.Println("Found post", item.Title, "on", feed.Name)
+
+		description := sql.NullString{
+			String: item.Description,
+			Valid:  item.Description != "",
+		}
+
+		pubAt, err := time.Parse(time.RFC1123, item.PubDate)
+		if err != nil {
+			fmt.Println("Error parsing time", err, "for", item.PubDate)
+			continue
+		}
+
+		_, err = db.CreatePost(context.Background(), database.CreatePostParams{
+			ID:          uuid.New(),
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+			Title:       item.Title,
+			Description: description,
+			Url:         item.Link,
+			PublishedAt: pubAt,
+			FeedID:      feed.ID,
+		})
+		if err != nil {
+			// 같은 아티클이 이미 존재하는 경우 URL 이 동일해서 막히니깐 굳이 로그에 안찍는다.
+			if strings.Contains(err.Error(), "duplicate key") {
+				continue
+			}
+			fmt.Println("Error creating post", err)
+		}
 	}
 
 	fmt.Println("Total", len(rssFeed.Channel.Item), "collected.")
